@@ -15,7 +15,7 @@ class ImageStore {
         
         let documentsDirectories =
             FileManager.default.urls(for: .documentDirectory,
-            in: .userDomainMask)
+                                     in: .userDomainMask)
         let documentDirectory = documentsDirectories.first!
         
         return documentDirectory.appendingPathComponent(key)
@@ -24,12 +24,12 @@ class ImageStore {
     func setImage(_ image: UIImage, forKey key: String) {
         cache.setObject(image, forKey: key as NSString)
         
-
+        // Create full URL for image
         let url = imageURL(forKey: key)
         
-
+        // Turn image into JPEG data
         if let data = UIImageJPEGRepresentation(image, 0.5) {
-
+            // Write it to full URL
             let _ = try? data.write(to: url, options: [.atomic])
         }
     }
@@ -61,3 +61,4 @@ class ImageStore {
     }
     
 }
+

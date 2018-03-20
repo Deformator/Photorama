@@ -7,24 +7,24 @@
 
 import Foundation
 
-enum FlickrError: Error {
-    case invalidJSONData
-}
-
 enum Method: String {
     case interestingPhotos = "flickr.interestingness.getList"
 }
 
+enum FlickrError: Error {
+    case invalidJSONData
+}
+
+private let baseURLString = "https://api.flickr.com/services/rest"
+private let apiKey = "6bbff49f1a313a2a475c1b6505035be5"
+
+private let dateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    return formatter
+}()
+
 struct FlickrAPI {
-    
-    private static let baseURLString = "https://api.flickr.com/services/rest"
-    private static let apiKey = "6bbff49f1a313a2a475c1b6505035be5"
-    
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return formatter
-    }()
     
     static var interestingPhotosURL: URL {
         return flickrURL(method: .interestingPhotos,
@@ -32,32 +32,32 @@ struct FlickrAPI {
     }
     
     private static func flickrURL(method: Method,
-        parameters: [String:String]?) -> URL {
-            var components = URLComponents(string: baseURLString)!
-            
-            var queryItems = [URLQueryItem]()
-            
-            let baseParams = [
-                "method": method.rawValue,
-                "format": "json",
-                "nojsoncallback": "1",
-                "api_key": apiKey
-            ]
-            
-            for (key, value) in baseParams {
+                                  parameters: [String:String]?) -> URL {
+        var components = URLComponents(string: baseURLString)!
+        
+        var queryItems = [URLQueryItem]()
+        
+        let baseParams = [
+            "method": method.rawValue,
+            "format": "json",
+            "nojsoncallback": "1",
+            "api_key": apiKey
+        ]
+        
+        for (key, value) in baseParams {
+            let item = URLQueryItem(name: key, value: value)
+            queryItems.append(item)
+        }
+        
+        if let additionalParams = parameters {
+            for (key, value) in additionalParams {
                 let item = URLQueryItem(name: key, value: value)
                 queryItems.append(item)
             }
-            
-            if let additionalParams = parameters {
-                for (key, value) in additionalParams {
-                    let item = URLQueryItem(name: key, value: value)
-                    queryItems.append(item)
-                }
-            }
-            components.queryItems = queryItems
-            
-            return components.url!
+        }
+        components.queryItems = queryItems
+        
+        return components.url!
     }
     
     static func photos(fromJSON data: Data) -> PhotosResult {
@@ -70,7 +70,7 @@ struct FlickrAPI {
                 let photos = jsonDictionary["photos"] as? [String:Any],
                 let photosArray = photos["photo"] as? [[String:Any]] else {
                     
-
+                    // The JSON structure doesn't match our expectations
                     return .failure(FlickrError.invalidJSONData)
             }
             
@@ -82,7 +82,8 @@ struct FlickrAPI {
             }
             
             if finalPhotos.isEmpty && !photosArray.isEmpty {
-
+                // We weren't able to parse any of the photos.
+                // Maybe the JSON format for photos has changed.
                 return .failure(FlickrError.invalidJSONData)
             }
             return .success(finalPhotos)
@@ -100,11 +101,11 @@ struct FlickrAPI {
             let url = URL(string: photoURLString),
             let dateTaken = dateFormatter.date(from: dateString) else {
                 
-
+                // Don't have enough information to construct a Photo
                 return nil
         }
-
+        
         return Photo(title: title, photoID: photoID, remoteURL: url, dateTaken: dateTaken)
     }
-
+    
 }

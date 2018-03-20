@@ -23,18 +23,22 @@ enum PhotosResult {
 
 class PhotoStore {
     
-    private let session: URLSession = {
+    let imageStore = ImageStore()
+    
+    let session: URLSession = {
         let config = URLSessionConfiguration.default
         return URLSession(configuration: config)
     }()
     
-    private func processPhotosRequest(data: Data?, error: Error?) -> PhotosResult {
+    func processPhotosRequest(data: Data?, error: Error?) -> PhotosResult {
         guard let jsonData = data else {
             return .failure(error!)
         }
         
         return FlickrAPI.photos(fromJSON: jsonData)
     }
+    
+    private var photos: [Photo] = []
     
     func processImageRequest(data: Data?, error: Error?) -> ImageResult {
         
@@ -45,7 +49,8 @@ class PhotoStore {
                 // Couldn't create an image
                 if data == nil {
                     return .failure(error!)
-                } else {
+                }
+                else {
                     return .failure(PhotoError.imageCreationError)
                 }
         }
@@ -55,6 +60,13 @@ class PhotoStore {
     
     func fetchImage(for photo: Photo, completion: @escaping (ImageResult) -> Void) {
         
+        let photoKey = photo.photoID
+        if let image = imageStore.image(forKey: photoKey) {
+            OperationQueue.main.addOperation {
+                completion(.success(image))
+            }
+        }
+        
         let photoURL = photo.remoteURL
         let request = URLRequest(url: photoURL)
         
@@ -62,7 +74,14 @@ class PhotoStore {
             (data, response, error) -> Void in
             
             let result = self.processImageRequest(data: data, error: error)
-            completion(result)
+            
+            if case let .success(image) = result {
+                self.imageStore.setImage(image, forKey: photoKey)
+            }
+            
+            OperationQueue.main.addOperation {
+                completion(result)
+            }
         }
         task.resume()
     }
@@ -81,5 +100,6 @@ class PhotoStore {
         })
         task.resume()
     }
-        
+    
 }
+
